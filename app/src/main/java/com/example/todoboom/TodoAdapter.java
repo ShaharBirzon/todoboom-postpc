@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -14,29 +15,53 @@ import java.util.ArrayList;
 /***
  * this class is an adapter for the "to do" recycler view
  */
-public class TodoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+public class TodoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>{
 
-    private Context context;
-    private ArrayList<String> items;
-    private OnTodoListener onTodoListener;
+    private ArrayList<TodoItem> items = new ArrayList<>();
+    public OnTodoListener onTodoListener;
 
-    public TodoAdapter(Context context, ArrayList<String> items, OnTodoListener onTodoListener){
-        this.context = context;
-        this.items = items;
-        this.onTodoListener = onTodoListener;
+    public void setTodos(ArrayList<TodoItem> itemList){
+        items.clear();
+        items.addAll(itemList);
+        notifyDataSetChanged();
     }
 
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater inflater = LayoutInflater.from(context);
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
         View row = inflater.inflate(R.layout.todo_row, parent, false);
-        return new TodoItem(row, onTodoListener);
+        return new TodoItemHolder(row);
     }
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        ((TodoItem)holder).todoText.setText(items.get(position));
+        final TodoItem item = items.get(position);
+        ((TodoItemHolder)holder).todoText.setText(item.getTodoDescription());
+        if (item.isTodoDone()){
+            ((TodoItemHolder)holder).doneImg.setVisibility(View.VISIBLE);
+            ((TodoItemHolder)holder).todoText.setAlpha(0.4f);
+
+        }
+        else {
+            ((TodoItemHolder)holder).doneImg.setVisibility(View.INVISIBLE);
+            ((TodoItemHolder)holder).todoText.setAlpha(1f);
+        }
+        
+        ((TodoItemHolder)holder).itemView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+               onTodoListener.onTodoClick(item);
+            }
+        });
+
+        ((TodoItemHolder)holder).itemView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                onTodoListener.onTodoLongClick(item);
+                return true;
+            }
+        });
 
     }
 
@@ -48,31 +73,24 @@ public class TodoAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /***
      * this class represents a single to-do item in the recycler view
      */
-    public class TodoItem extends RecyclerView.ViewHolder implements View.OnClickListener{
+    public class TodoItemHolder extends RecyclerView.ViewHolder{
         TextView todoText;
-        OnTodoListener onTodoListener;
-        boolean isDone = false;
+        ImageView doneImg;
 
-        public TodoItem(@NonNull View itemView, OnTodoListener onTodoListener) {
+        public TodoItemHolder(@NonNull View itemView) {
             super(itemView);
             todoText = itemView.findViewById(R.id.todo_text);
-            this.onTodoListener = onTodoListener;
-            itemView.setOnClickListener(this);
+            doneImg = itemView.findViewById(R.id.done_image);
         }
 
-        @Override
-        public void onClick(View v) {
-            if (!isDone){
-                onTodoListener.onTodoClick(getAdapterPosition());
-                isDone = true;
-            }
-        }
     }
 
     /***
      * this is an interface for a clickable item in the recycler view
      */
     public interface OnTodoListener{
-        void onTodoClick(int position);
+        void onTodoClick(TodoItem item);
+        void onTodoLongClick(TodoItem item);
     }
 }
+

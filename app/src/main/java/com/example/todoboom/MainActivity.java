@@ -1,10 +1,13 @@
 package com.example.todoboom;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.DialogInterface;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -17,27 +20,75 @@ import java.util.ArrayList;
 /***
  * the main activity of the app. in this activity the user can add todos and mark them as done.
  */
-public class MainActivity extends AppCompatActivity implements TodoAdapter.OnTodoListener {
+public class MainActivity extends AppCompatActivity {
 
     RecyclerView recyclerView;
-    ArrayList<String> items = new ArrayList<>();
+    ArrayList<TodoItem> items;
+    AlertDialog deleteDialog;
+    TodoAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         recyclerView = findViewById(R.id.todo_list);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(new TodoAdapter(this, items, this));
+        recyclerView.setLayoutManager(new LinearLayoutManager(this, RecyclerView.VERTICAL, false));
+        adapter = new TodoAdapter();
+        items = TodoListPreferences.restoreSavedData(this);
+        adapter.setTodos(items);
+        Log.e("number of todo items ", String.valueOf(items.size()));
+        recyclerView.setAdapter(adapter);
+
+        adapter.onTodoListener = new TodoAdapter.OnTodoListener() {
+            @Override
+            public void onTodoClick(TodoItem item) {
+                if (!item.isTodoDone()){
+                    item.markAsDone();
+                    adapter.setTodos(items);
+                    Toast.makeText(getApplicationContext(), "TODO " + item.getTodoDescription() + " is now done. BOOM!",
+                            Toast.LENGTH_SHORT).show();
+                    TodoListPreferences.saveTodoList(MainActivity.this, items);
+                }
+
+            }
+
+            @Override
+            public void onTodoLongClick(TodoItem item) {
+                final TodoItem pos = item;
+                AlertDialog.Builder dialog = new AlertDialog.Builder(MainActivity.this);
+                dialog.setMessage("Delete this todo?");
+                dialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+
+                dialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        items.remove(pos);
+                        adapter.setTodos(items);
+                    }
+                });
+                TodoListPreferences.saveTodoList(MainActivity.this, items);
+                deleteDialog= dialog.create();
+                deleteDialog.show();
+
+            }
+        };
     }
+
 
     /***
      * this method adds a new to-do item to list of todos
      * @param item a string added by the user
      */
-    public void addTodoItem(String item){
+    private void addTodoItem(TodoItem item){
+        Log.i("add item: ", item.getTodoDescription() + item.isTodoDone());
         items.add(item);
-        recyclerView.getAdapter().notifyDataSetChanged();
+        adapter.setTodos(items);
+        TodoListPreferences.saveTodoList(this, items);
     }
 
     /***
@@ -52,24 +103,9 @@ public class MainActivity extends AppCompatActivity implements TodoAdapter.OnTod
             Toast.makeText(getApplicationContext(),"Oops! you can't create an empty todo",Toast.LENGTH_SHORT).show();
         }
         else{
-            addTodoItem(value);
+            addTodoItem(new TodoItem(value));
         }
         inputText.getText().clear();
     }
 
-    /***
-     * this method marks a to-do as 'done' by changing the alpha, adding a V sign, and pops up a
-     * toast that says that the certain to-do is done.
-     * @param position the position of the to-do item in the recycler
-     */
-    @Override
-    public void onTodoClick(int position) {
-        View view = recyclerView.getLayoutManager().findViewByPosition(position);
-        ImageView doneImage = view.findViewById(R.id.done_image);
-        doneImage.setVisibility(View.VISIBLE);
-        TextView todoText = view.findViewById(R.id.todo_text);
-        todoText.setAlpha(0.4f);
-        Toast.makeText(getApplicationContext(),"TODO "+todoText.getText()+" is now done. BOOM!",
-                Toast.LENGTH_LONG).show();
-    }
 }
